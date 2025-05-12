@@ -57,6 +57,13 @@ class VaultGuardApp extends StatelessWidget {
           titleLarge: TextStyle(color: AppColors.textPrimary, fontSize: 20),
           bodyMedium: TextStyle(color: AppColors.textSecondary),
         ),
+        popupMenuTheme: PopupMenuThemeData(
+          color: AppColors.surface,
+          textStyle: const TextStyle(color: AppColors.textPrimary),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: CupertinoPageTransitionsBuilder(),
