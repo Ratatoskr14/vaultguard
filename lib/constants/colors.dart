@@ -1,11 +1,13 @@
+// lib/constants/colors.dart
+
 import 'package:flutter/material.dart';
 
-/// Centralized color definitions for VaultGuard (dark mode base)
+/// Dark-mode grey palette with a subtle accent
 class AppColors {
-  static const Color primary      = Color(0xFFD32D27);
-  static const Color accent       = Color(0xFFAF0809);
-  static const Color background   = Color(0xFF121212);
-  static const Color surface      = Color(0xFF1E1E1E);
-  static const Color textPrimary  = Color(0xFFE0E0E0);
-  static const Color textSecondary= Color(0xFF9E9E9E);
+  static const Color background    = Color(0xFF202124); // overall background
+  static const Color surface       = Color(0xFF2E2E33); // sheets, cards
+  static const Color card          = Color(0xFF2B2B30); // credential cards
+  static const Color textPrimary   = Color(0xFFE8EAED); // main text
+  static const Color textSecondary = Color(0xFF9AA0A6); // secondary text
+  static const Color accent        = Color(0xFF5F6368); // gentle steel-grey
 }

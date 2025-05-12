@@ -16,16 +16,16 @@ class AddEditCredentialPage extends StatefulWidget {
 
 class _AddEditCredentialPageState extends State<AddEditCredentialPage> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _titleCtrl;
-  late TextEditingController _usernameCtrl;
-  late TextEditingController _passwordCtrl;
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _usernameCtrl;
+  late final TextEditingController _passwordCtrl;
   bool _obscurePassword = true;
   final _dbHelper = CredentialDbHelper();
 
   @override
   void initState() {
     super.initState();
-    _titleCtrl    = TextEditingController(text: widget.credential?.title ?? '');
+    _titleCtrl    = TextEditingController(text: widget.credential?.title    ?? '');
     _usernameCtrl = TextEditingController(text: widget.credential?.username ?? '');
     _passwordCtrl = TextEditingController(text: widget.credential?.password ?? '');
   }
@@ -43,7 +43,8 @@ class _AddEditCredentialPageState extends State<AddEditCredentialPage> {
     } else {
       await _dbHelper.updateCredential(cred);
     }
-    Navigator.pop(context, true);
+    // pop returning `true` so VaultPage knows to refresh
+    Navigator.of(context).pop(true);
   }
 
   void _openGenerator() {
@@ -64,58 +65,53 @@ class _AddEditCredentialPageState extends State<AddEditCredentialPage> {
   Widget build(BuildContext context) {
     final isEditing = widget.credential != null;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Credential' : 'Add Credential'),
-        backgroundColor: AppColors.primary,
-      ),
+      appBar: AppBar(title: Text(isEditing ? 'Edit Credential' : 'Add Credential')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(children: [
           Form(
             key: _formKey,
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: _titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                  validator: (v) => v == null || v.isEmpty ? 'Enter title' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _usernameCtrl,
-                  decoration: const InputDecoration(labelText: 'Username'),
-                  validator: (v) => v == null || v.isEmpty ? 'Enter username' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordCtrl,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                          ),
-                          onPressed: () {
-                            setState(() => _obscurePassword = !_obscurePassword);
-                          },
-                          tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+            child: Column(children: [
+              TextFormField(
+                controller: _titleCtrl,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Title'),
+                validator: (v) => v == null || v.isEmpty ? 'Enter title' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _usernameCtrl,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(labelText: 'Username'),
+                validator: (v) => v == null || v.isEmpty ? 'Enter username' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordCtrl,
+                style: const TextStyle(color: AppColors.textPrimary),
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          color: AppColors.textSecondary,
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.autorenew),
-                          onPressed: _openGenerator,
-                          tooltip: 'Generate Password',
-                        ),
-                      ],
-                    ),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.autorenew, color: AppColors.accent),
+                        onPressed: _openGenerator,
+                      ),
+                    ],
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Enter password' : null,
                 ),
-              ],
-            ),
+                validator: (v) => v == null || v.isEmpty ? 'Enter password' : null,
+              ),
+            ]),
           ),
           const Spacer(),
           SizedBox(
@@ -123,7 +119,6 @@ class _AddEditCredentialPageState extends State<AddEditCredentialPage> {
             height: 48,
             child: ElevatedButton(
               onPressed: _save,
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
               child: Text(isEditing ? 'Update' : 'Save'),
             ),
           ),
@@ -142,7 +137,7 @@ class PasswordGeneratorSheet extends StatefulWidget {
 }
 
 class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
-  int _length = 16;
+  int  _length         = 16;
   bool _includeLower   = true;
   bool _includeUpper   = true;
   bool _includeNumbers = true;
@@ -167,20 +162,15 @@ class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
     if (_easyToSay) {
       _generated = _generatePronounceable(_length);
     } else {
-      var pool = StringBuffer();
-      if (_includeLower)   pool.write(_lower);
-      if (_includeUpper)   pool.write(_upper);
-      if (_includeNumbers) pool.write(_numbers);
-      if (_includeSymbols) pool.write(_symbols);
-
-      var chars = pool.toString();
+      final buf = StringBuffer()
+        ..write(_includeLower   ? _lower     : '')
+        ..write(_includeUpper   ? _upper     : '')
+        ..write(_includeNumbers ? _numbers   : '')
+        ..write(_includeSymbols ? _symbols   : '');
+      var chars = buf.toString();
       if (_easyToRead) {
-        chars = chars.replaceAll(
-          RegExp('[' + RegExp.escape(_ambiguous) + ']'),
-          '',
-        );
+        chars = chars.replaceAll(RegExp('[' + RegExp.escape(_ambiguous) + ']'), '');
       }
-
       if (chars.isEmpty) {
         _generated = '';
       } else {
@@ -195,37 +185,38 @@ class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
   }
 
   String _generatePronounceable(int length) {
-    const vowels = 'aeiou';
+    const vowels     = 'aeiou';
     const consonants = 'bcdfghjklmnpqrstvwxyz';
     final rng = Random.secure();
-    final sb = StringBuffer();
-    bool pickConsonant = true;
+    final sb  = StringBuffer();
+    bool takeC = true;
     for (var i = 0; i < length; i++) {
-      sb.write(
-          pickConsonant
-              ? consonants[rng.nextInt(consonants.length)]
-              : vowels[rng.nextInt(vowels.length)]
-      );
-      pickConsonant = !pickConsonant;
+      sb.write(takeC
+          ? consonants[rng.nextInt(consonants.length)]
+          : vowels[rng.nextInt(vowels.length)]);
+      takeC = !takeC;
     }
     return sb.toString();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      color: AppColors.surface,
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
-        top: 16, left: 16, right: 16,
+        top: 16,
+        left: 16,
+        right: 16,
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Generate Password',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
             IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(Icons.close, color: AppColors.textSecondary),
               onPressed: () => Navigator.pop(context),
             ),
           ],
@@ -233,7 +224,7 @@ class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
         const SizedBox(height: 8),
         SelectableText(
           _generated,
-          style: const TextStyle(fontSize: 16, color: Colors.white),
+          style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
         ),
         Slider(
           min: 8,
@@ -241,12 +232,13 @@ class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
           divisions: 56,
           label: 'Length: $_length',
           value: _length.toDouble(),
+          activeColor: AppColors.accent,
+          inactiveColor: AppColors.card,
           onChanged: (v) {
             _length = v.round();
             _regenerate();
           },
         ),
-        const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           FilterChip(
             label: const Text('Lowercase'),
@@ -284,18 +276,18 @@ class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
         const Divider(color: Colors.grey, height: 32),
         SwitchListTile(
           title: const Text('Easy to Read'),
-          subtitle: Text('Remove ambiguous chars (${_ambiguous.split('').join(', ')})'),
+          subtitle: Text('Remove ambiguous: ${_ambiguous.split('').join(', ')}'),
           value: _easyToRead,
           onChanged: (v) {
             _easyToRead = v;
             if (v && _easyToSay) _easyToSay = false;
             _regenerate();
           },
-          activeColor: AppColors.primary,
+          activeColor: AppColors.accent,
         ),
         SwitchListTile(
           title: const Text('Easy to Say'),
-          subtitle: const Text('Pronounceable password (letters only)'),
+          subtitle: const Text('Pronounceable letters only'),
           value: _easyToSay,
           onChanged: (v) {
             _easyToSay = v;
@@ -318,7 +310,6 @@ class _PasswordGeneratorSheetState extends State<PasswordGeneratorSheet> {
                 Navigator.pop(context);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
             child: const Text('Use Password'),
           ),
         ]),

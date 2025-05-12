@@ -13,23 +13,62 @@ class VaultGuardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final baseDark = ThemeData.dark();
     return MaterialApp(
       title: 'VaultGuard',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        primaryColor: AppColors.primary,
+      theme: baseDark.copyWith(
+        // Update the ColorScheme to use our custom greys
+        colorScheme: baseDark.colorScheme.copyWith(
+          background:   AppColors.background,
+          surface:      AppColors.surface,
+          primary:      AppColors.accent,
+          onBackground: AppColors.textPrimary,
+          onSurface:    AppColors.textPrimary,
+        ),
         scaffoldBackgroundColor: AppColors.background,
-        inputDecorationTheme: const InputDecorationTheme(
-          filled: true,
-          fillColor: Color(0xFF1E1E1E),
-          border: OutlineInputBorder(),
+        cardColor:               AppColors.card,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
+          elevation:       0,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled:     true,
+          fillColor:  AppColors.surface,
+          border:     OutlineInputBorder(
+            borderRadius: BorderRadius.circular(4),
+            borderSide:   BorderSide.none,
+          ),
+          labelStyle: const TextStyle(color: AppColors.textSecondary),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            backgroundColor: MaterialStateProperty.all(AppColors.accent),
+            foregroundColor: MaterialStateProperty.all(AppColors.textPrimary),
+            shape: MaterialStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+        ),
+        textTheme: const TextTheme(
+          titleLarge: TextStyle(color: AppColors.textPrimary, fontSize: 20),
+          bodyMedium: TextStyle(color: AppColors.textSecondary),
+        ),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.iOS:     CupertinoPageTransitionsBuilder(),
+          },
         ),
       ),
       initialRoute: LoginPage.routeName,
       routes: {
-        LoginPage.routeName: (ctx) => const LoginPage(),
-        VaultPage.routeName: (ctx) => const VaultPage(),
-        SettingsPage.routeName: (ctx) => const SettingsPage(),
+        LoginPage.routeName: (_) => const LoginPage(),
+        VaultPage.routeName: (_) => const VaultPage(),
+        SettingsPage.routeName: (_) => const SettingsPage(),
       },
     );
   }

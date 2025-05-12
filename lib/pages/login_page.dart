@@ -1,3 +1,5 @@
+// lib/pages/login_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/biometric_service.dart';
@@ -14,11 +16,11 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _emailCtrl = TextEditingController();
+  final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   late final BiometricService _biometricService;
-  bool _biometricEnabled = false;
-  bool _isAuthenticating = false;
+  bool _biometricEnabled  = false;
+  bool _isAuthenticating  = false;
 
   @override
   void initState() {
@@ -28,12 +30,10 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _initBiometric() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs  = await SharedPreferences.getInstance();
     final enabled = prefs.getBool('biometrics_enabled') ?? false;
     setState(() => _biometricEnabled = enabled);
-    if (_biometricEnabled) {
-      _authenticate();
-    }
+    if (enabled) _authenticate();
   }
 
   Future<void> _authenticate() async {
@@ -78,16 +78,13 @@ class _LoginPageState extends State<LoginPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                  textStyle: const TextStyle(fontSize: 18),
                 ),
                 onPressed: _isAuthenticating ? null : _authenticate,
               ),
               const SizedBox(height: 16),
               TextButton(
                 child: const Text('Use Password Instead'),
-                onPressed: () {
-                  setState(() => _biometricEnabled = false);
-                },
+                onPressed: () => setState(() => _biometricEnabled = false),
               ),
             ],
             if (!_biometricEnabled) ...[
@@ -114,10 +111,6 @@ class _LoginPageState extends State<LoginPage> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: _tryLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    textStyle: const TextStyle(fontSize: 16),
-                  ),
                   child: const Text('Sign In'),
                 ),
               ),

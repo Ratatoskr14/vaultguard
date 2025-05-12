@@ -1,3 +1,5 @@
+// lib/pages/vault_page.dart
+
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../db/credential_db.dart';
@@ -28,27 +30,33 @@ class _VaultPageState extends State<VaultPage> {
     _credentialList = _dbHelper.getCredentials();
   }
 
-  void _deleteCredential(int id) async {
+  Future<void> _deleteCredential(int id) async {
     await _dbHelper.deleteCredential(id);
     setState(_refreshList);
   }
 
-  void _editCredential(Credential credential) async {
-    final result = await Navigator.push(
+  Future<void> _editCredential(Credential cred) async {
+    final updated = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => AddEditCredentialPage(credential: credential),
+      MaterialPageRoute<bool>(
+        builder: (_) => AddEditCredentialPage(credential: cred),
       ),
     );
-    if (result == true) setState(_refreshList);
+    if (updated == true) {
+      setState(_refreshList);
+    }
   }
 
-  void _addCredential() async {
-    final result = await Navigator.push(
+  Future<void> _addCredential() async {
+    final created = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => const AddEditCredentialPage()),
+      MaterialPageRoute<bool>(
+        builder: (_) => const AddEditCredentialPage(),
+      ),
     );
-    if (result == true) setState(_refreshList);
+    if (created == true) {
+      setState(_refreshList);
+    }
   }
 
   @override
@@ -56,42 +64,55 @@ class _VaultPageState extends State<VaultPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vault'),
-        backgroundColor: AppColors.primary,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
-            onPressed: () => Navigator.pushNamed(context, SettingsPage.routeName),
+            onPressed: () async {
+              final cleared = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute<bool>(
+                  builder: (_) => const SettingsPage(),
+                ),
+              );
+              if (cleared == true) {
+                setState(_refreshList);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Vault cleared')),
+                );
+              }
+            },
           ),
         ],
       ),
       body: FutureBuilder<List<Credential>>(
         future: _credentialList,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+        builder: (ctx, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+          } else if (snap.hasError) {
+            return Center(child: Text('Error: ${snap.error}'));
           }
-          final creds = snapshot.data ?? [];
-          if (creds.isEmpty) return const Center(child: Text('No credentials saved.'));
+          final creds = snap.data ?? [];
+          if (creds.isEmpty) {
+            return const Center(child: Text('No credentials saved.'));
+          }
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: creds.length,
-            itemBuilder: (context, i) {
+            itemBuilder: (ctx, i) {
               final cred = creds[i];
               return CredentialCard(
                 credential: cred,
+                onEdit:   () => _editCredential(cred),
                 onDelete: () => _deleteCredential(cred.id),
-                onEdit: () => _editCredential(cred),
               );
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addCredential,
         backgroundColor: AppColors.accent,
+        onPressed: _addCredential,
         child: const Icon(Icons.add),
       ),
     );
