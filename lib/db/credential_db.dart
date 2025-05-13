@@ -1,100 +1,76 @@
-import 'dart:async';
-import 'package:path/path.dart';
+// lib/db/credential_db.dart
+
 import 'package:sqflite/sqflite.dart';
 import '../models/credential.dart';
 import '../services/encryption_service.dart';
+import 'vault_db.dart';
 
 class CredentialDbHelper {
   static final CredentialDbHelper _instance = CredentialDbHelper._internal();
   factory CredentialDbHelper() => _instance;
   CredentialDbHelper._internal();
 
-  static Database? _db;
   final _encryption = EncryptionService();
-
-  Future<Database> get database async {
-    if (_db != null) return _db!;
-    _db = await _initDb();
-    return _db!;
-  }
-
-  Future<Database> _initDb() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'vaultguard.db');
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE credentials(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            username TEXT,
-            password TEXT
-          )
-        ''');
-      },
-    );
-  }
-
-  /// Fetches all credentials, decrypting each.
-  /// If decryption fails (due to key mismatch or corrupted data),
-  /// the password shows as '<decryption error>' instead of crashing.
-  // lib/db/credential_db.dart
+  Future<Database> get _db async => await VaultDatabase().database;
 
   Future<List<Credential>> getCredentials() async {
-    final db   = await database;
+    final db   = await _db;
     final maps = await db.query('credentials', orderBy: 'id DESC');
-    final List<Credential> creds = [];
-
-    for (final map in maps) {
-      String decrypted;
+    return maps.map((m) {
+      String pwd;
       try {
-        decrypted = _encryption.decrypt(map['password'] as String);
-      } catch (e) {
-        // fallback so we don’t crash — maybe key changed or data is bad
-        decrypted = '<decryption error>';
+        pwd = _encryption.decrypt(m['password'] as String);
+      } catch (_) {
+        pwd = '<decryption error>';
       }
-      creds.add(Credential(
-        id:       map['id'] as int,
-        title:    map['title'] as String,
-        username: map['username'] as String,
-        password: decrypted,
-      ));
-    }
-
-    return creds;
+      return Credential(
+        id:       m['id'] as int,
+        title:    m['title'] as String,
+        username: m['username'] as String,
+        password: pwd,
+      );
+    }).toList();
   }
 
-  Future<int> insertCredential(Credential cred) async {
-    final db = await database;
-    final encrypted = _encryption.encrypt(cred.password);
-    return await db.insert('credentials', {
-      'title': cred.title,
-      'username': cred.username,
-      'password': encrypted,
+  Future<int> insertCredential(Credential c) async {
+    final db = await _db;
+    return db.insert('credentials', {
+      'title':    c.title,
+      'username': c.username,
+      'password': _encryption.encrypt(c.password),
     });
   }
 
-  Future<int> updateCredential(Credential cred) async {
-    final db = await database;
-    final encrypted = _encryption.encrypt(cred.password);
-    return await db.update(
+  Future<int> updateCredential(Credential c) async {
+    final db = await _db;
+    return db.update(
       'credentials',
-      {'title': cred.title, 'username': cred.username, 'password': encrypted},
+      {
+        'title':    c.title,
+        'username': c.username,
+        'password': _encryption.encrypt(c.password),
+      },
       where: 'id = ?',
-      whereArgs: [cred.id],
+      whereArgs: [c.id],
     );
   }
 
   Future<int> deleteCredential(int id) async {
-    final db = await database;
-    return await db.delete('credentials', where: 'id = ?', whereArgs: [id]);
+    final db = await _db;
+    return db.delete('credentials', where: 'id = ?', whereArgs: [id]);
   }
 
-  /// Wipes all stored credentials
   Future<void> clearAll() async {
-    final db = await database;
+    final db = await _db;
     await db.delete('credentials');
+    // if you want to wipe notes as well:
+    await db.delete('wifi_notes');
+    await db.delete('passport_notes');
+    await db.delete('driver_license_notes');
+    await db.delete('membership_notes');
+    await db.delete('security_questions');
+    await db.delete('software_license_notes');
+    await db.delete('emergency_contacts');
+    await db.delete('generic_notes');
   }
 }
