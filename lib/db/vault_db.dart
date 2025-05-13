@@ -1,5 +1,3 @@
-// lib/db/vault_db.dart
-
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -20,14 +18,14 @@ class VaultDatabase {
     final path   = join(dbPath, 'vaultguard.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future _onCreate(Database db, int version) async {
-    // Credentials table
+    // 1) Credentials
     await db.execute('''
       CREATE TABLE credentials(
         id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,14 +35,21 @@ class VaultDatabase {
       );
     ''');
 
-    // All note tables
+    // 2) Notes
     await _createNoteTables(db);
+
+    // 3) Cards
+    await _createCardTables(db);
   }
 
   Future _onUpgrade(Database db, int oldV, int newV) async {
     if (oldV < 2) {
-      // New in v2: note tables
+      // v2: add note tables
       await _createNoteTables(db);
+    }
+    if (oldV < 3) {
+      // v3: add card tables
+      await _createCardTables(db);
     }
   }
 
@@ -99,27 +104,30 @@ class VaultDatabase {
         question       TEXT,
         answer         TEXT,
         hint           TEXT,
+        attachment     TEXT,
         FOREIGN KEY(credential_id) REFERENCES credentials(id) ON DELETE CASCADE
       );
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS software_license_notes(
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        title        TEXT,
-        license_key  TEXT,
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        title         TEXT,
+        license_key   TEXT,
         purchase_date TEXT,
-        expiry_date   TEXT
+        expiry_date   TEXT,
+        attachment    TEXT
       );
     ''');
 
     await db.execute('''
       CREATE TABLE IF NOT EXISTS emergency_contacts(
-        id       INTEGER PRIMARY KEY AUTOINCREMENT,
-        name     TEXT,
-        phone    TEXT,
-        relation TEXT,
-        notes    TEXT
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT,
+        phone      TEXT,
+        relation   TEXT,
+        notes      TEXT,
+        attachment TEXT
       );
     ''');
 
@@ -129,6 +137,67 @@ class VaultDatabase {
         title       TEXT,
         description TEXT,
         attachment  TEXT
+      );
+    ''');
+  }
+
+  Future _createCardTables(Database db) async {
+    // Payment cards
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS payment_cards(
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        cardholder_name  TEXT,
+        card_number      TEXT,
+        expiry_date      TEXT,
+        cvv              TEXT,
+        attachment       TEXT
+      );
+    ''');
+
+    // ID cards
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS id_cards(
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        card_type         TEXT,
+        id_number         TEXT,
+        name              TEXT,
+        issuing_authority TEXT,
+        expiry_date       TEXT,
+        attachment        TEXT
+      );
+    ''');
+
+    // Driver’s license as card
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS driver_license_cards(
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_number   TEXT,
+        name             TEXT,
+        date_of_birth    TEXT,
+        expiry_date      TEXT,
+        issuing_state    TEXT,
+        attachment       TEXT
+      );
+    ''');
+
+    // Gift cards
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS gift_cards(
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        card_name     TEXT,
+        card_number   TEXT,
+        expiry_date   TEXT,
+        attachment    TEXT
+      );
+    ''');
+
+    // Miscellaneous cards
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS misc_cards(
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        title         TEXT,
+        details       TEXT,
+        attachment    TEXT
       );
     ''');
   }

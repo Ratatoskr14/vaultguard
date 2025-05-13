@@ -192,8 +192,7 @@ class MembershipNote extends Note {
 /// Security question linked to a credential
 class SecurityQuestionNote extends Note {
   final int credentialId;
-  final String question;
-  final String answer;
+  final String question, answer;
   final String? hint;
 
   SecurityQuestionNote({
@@ -205,27 +204,23 @@ class SecurityQuestionNote extends Note {
     required List<String> attachmentPaths,
   }) : super(id: id, type: NoteType.securityQuestion, attachmentPaths: attachmentPaths);
 
-  factory SecurityQuestionNote.fromMap(Map<String, dynamic> m) {
-    return SecurityQuestionNote(
-      id: m['id'] as int,
-      credentialId: m['credential_id'] as int,
-      question: m['question'] as String,
-      answer: m['answer'] as String,
-      hint: m['hint'] as String?,
-      attachmentPaths: _parseAttachments(m['attachment'] as String?),
-    );
-  }
+  factory SecurityQuestionNote.fromMap(Map<String, dynamic> m) => SecurityQuestionNote(
+    id: m['id'] as int,
+    credentialId: m['credential_id'] as int,
+    question: m['question'] as String,
+    answer: m['answer'] as String,
+    hint: m['hint'] as String?,
+    attachmentPaths: _parseAttachments(m['attachment'] as String?),
+  );
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'credential_id': credentialId,
-      'question': question,
-      'answer': answer,
-      'hint': hint,
-      'attachment': jsonEncode(attachmentPaths),
-    };
-  }
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'credential_id': credentialId,
+    'question': question,
+    'answer': answer,
+    'hint': hint,
+    'attachment': jsonEncode(attachmentPaths),
+  };
 }
 
 /// Software license details
