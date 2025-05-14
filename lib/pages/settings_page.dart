@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_selector/file_selector.dart';
+import '../db/card_db.dart';
+import '../db/note_db.dart';
 import '../services/backup_service.dart';
 import '../services/biometric_service.dart';
 import '../constants/colors.dart';
@@ -325,6 +327,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 ) ?? false;
                 if (confirm) {
                   await CredentialDbHelper().clearAll();
+                  await CardDbHelper().clearAll();
+                  await NoteDbHelper().clearAll();
                   Navigator.pop(context, true);
                 }
               },

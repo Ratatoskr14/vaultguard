@@ -56,13 +56,14 @@ class BackupService {
     // Close any open database connection
     try {
       final db = await VaultDatabase().database;
-      await db.close();
+      // await db.close();
     } catch (_) {
       // ignore if already closed
     }
 
     // Overwrite the database file
-    final file = File(target);
-    await file.writeAsBytes(rawBytes, flush: true);
+    // final file = File(target);
+    // await file.writeAsBytes(rawBytes, flush: true);
+    // TODO: work on real restore functionality
   }
 }

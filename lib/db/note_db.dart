@@ -279,4 +279,16 @@ class NoteDbHelper {
     final db = await database;
     return db.delete('generic_notes', where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<void> clearAll() async {
+    final db = await database;
+    await db.delete('wifi_notes');
+    await db.delete('passport_notes');
+    await db.delete('driver_license_notes');
+    await db.delete('membership_notes');
+    await db.delete('security_questions');
+    await db.delete('software_license_notes');
+    await db.delete('emergency_contacts');
+    await db.delete('generic_notes');
+  }
 }

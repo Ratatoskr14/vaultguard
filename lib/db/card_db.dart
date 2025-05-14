@@ -108,4 +108,13 @@ class CardDbHelper {
     final db = await _db;
     return db.delete('misc_cards', where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<void> clearAll() async {
+    final db = await _db;
+    await db.delete('payment_cards');
+    await db.delete('id_cards');
+    await db.delete('driver_license_cards');
+    await db.delete('gift_cards');
+    await db.delete('misc_cards');
+  }
 }

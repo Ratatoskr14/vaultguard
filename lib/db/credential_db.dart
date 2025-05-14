@@ -64,13 +64,13 @@ class CredentialDbHelper {
     final db = await _db;
     await db.delete('credentials');
     // if you want to wipe notes as well:
-    await db.delete('wifi_notes');
-    await db.delete('passport_notes');
-    await db.delete('driver_license_notes');
-    await db.delete('membership_notes');
-    await db.delete('security_questions');
-    await db.delete('software_license_notes');
-    await db.delete('emergency_contacts');
-    await db.delete('generic_notes');
+    // await db.delete('wifi_notes');
+    // await db.delete('passport_notes');
+    // await db.delete('driver_license_notes');
+    // await db.delete('membership_notes');
+    // await db.delete('security_questions');
+    // await db.delete('software_license_notes');
+    // await db.delete('emergency_contacts');
+    // await db.delete('generic_notes');
   }
 }
