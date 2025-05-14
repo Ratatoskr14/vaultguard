@@ -268,7 +268,8 @@ class NoteDbHelper {
   }
   Future<int> insertGeneric(GenericNote n) async {
     final db = await database;
-    return db.insert('generic_notes', n.toMap());
+    final data = Map<String, dynamic>.from(n.toMap())..remove('id');
+    return db.insert('generic_notes', data);
   }
   Future<int> updateGeneric(GenericNote n) async {
     final db = await database;

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:vaultguard_v2/services/backup_service.dart';
 import 'firebase_options.dart';
 
 import 'constants/colors.dart';
@@ -15,6 +16,9 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(const VaultGuardApp());
 }
 

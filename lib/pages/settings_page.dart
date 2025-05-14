@@ -5,9 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_selector/file_selector.dart';
+import '../services/backup_service.dart';
 import '../services/biometric_service.dart';
 import '../constants/colors.dart';
 import '../db/credential_db.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsPage extends StatefulWidget {
   static const routeName = '/settings';
@@ -24,7 +27,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _firestore = FirebaseFirestore.instance;
   User? _user;
 
-  // Existing settings
+  // Settings state
   bool _driveBackupEnabled = true;
   int _backupFrequencyDays = 7;
   bool _biometricsEnabled = false;
@@ -35,7 +38,6 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadSettings();
-    // Listen to auth state changes
     _user = _auth.currentUser;
     _auth.userChanges().listen((u) {
       setState(() => _user = u);
@@ -78,27 +80,20 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _biometricsEnabled = v);
   }
 
-  // Google Sign-In and Firestore user setup
+  // Google Sign-In
   Future<void> _signInWithGoogle() async {
     try {
       final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return; // user canceled
-
+      if (googleUser == null) return;
       final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
       final userCred = await _auth.signInWithCredential(credential);
       setState(() => _user = userCred.user);
-      // Show success toast
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Signed in as ${_user!.displayName ?? _user!.email}',
-          ),
-        ),
+        SnackBar(content: Text('Signed in as ${_user!.displayName ?? _user!.email}')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,7 +107,6 @@ class _SettingsPageState extends State<SettingsPage> {
       await _auth.signOut();
       await _googleSignIn.signOut();
       setState(() => _user = null);
-      // Show sign-out toast
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Signed out successfully')),
       );
@@ -131,6 +125,50 @@ class _SettingsPageState extends State<SettingsPage> {
       'photoURL': u.photoURL ?? '',
       'lastLogin': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  Future<bool> _ensureStoragePermission() async {
+    if (await Permission.manageExternalStorage.request().isGranted) {
+      return true;
+    }
+    // handle denial...
+    return false;
+  }
+
+  // Manual Backup
+  Future<void> _onManualBackup() async {
+    try {
+      _ensureStoragePermission();
+      final file = await BackupService().createBackup();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup created at: ${file.path}')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup failed: $e')),
+      );
+    }
+  }
+
+  // Manual Restore with file_selector
+  Future<void> _onManualRestore() async {
+    try {
+      final typeGroup = XTypeGroup(label: 'Backup files', extensions: ['enc']);
+      final XFile? file = await openFile(
+        acceptedTypeGroups: [typeGroup],
+        confirmButtonText: 'Restore',
+      );
+      if (file == null) return;
+      final path = file.path;
+      await BackupService().restoreBackup(path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restored backup from: $path')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restore failed: $e')),
+      );
+    }
   }
 
   @override
@@ -156,9 +194,7 @@ class _SettingsPageState extends State<SettingsPage> {
               )
                   : Icon(Icons.account_circle, size: 40, color: AppColors.accent),
               title: Text(
-                _user != null
-                    ? _user!.displayName ?? _user!.email!
-                    : 'Sign in with Google',
+                _user != null ? _user!.displayName ?? _user!.email! : 'Sign in with Google',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: _user != null ? FontWeight.normal : FontWeight.bold,
@@ -188,12 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Data Backup',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      )),
+                  Text('Data Backup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     title: const Text('Google Drive Backup'),
@@ -211,18 +242,36 @@ class _SettingsPageState extends State<SettingsPage> {
                         value: _backupFrequencyDays,
                         dropdownColor: AppColors.surface,
                         style: TextStyle(color: AppColors.textPrimary),
-                        items: [3, 7, 14, 30]
-                            .map((d) => DropdownMenuItem(
-                          value: d,
-                          child: Text('$d days'),
-                        ))
-                            .toList(),
+                        items: [3, 7, 14, 30].map((d) => DropdownMenuItem(value: d, child: Text('\$d days'))).toList(),
                         onChanged: _driveBackupEnabled ? _onBackupFrequencyChanged : null,
                       ),
                     ],
                   ),
                 ],
               ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Manual Backup/Restore Card
+          Card(
+            color: AppColors.card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.backup, color: AppColors.accent),
+                  title: const Text('Backup Now'),
+                  onTap: _onManualBackup,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(Icons.restore, color: AppColors.accent),
+                  title: const Text('Restore from Backup'),
+                  onTap: _onManualRestore,
+                ),
+              ],
             ),
           ),
 
@@ -237,12 +286,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Security',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      )),
+                  Text('Security', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     title: const Text('Use Fingerprint (Biometrics)'),
@@ -258,7 +302,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 16),
 
-          // Danger Zone Card (fully red)
+          // Danger Zone Card
           Card(
             color: Colors.redAccent,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -274,18 +318,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: const Text('Confirm Clear Vault'),
                     content: const Text('Delete all your stored credentials?'),
                     actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete'),
-                      ),
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
                     ],
                   ),
                 ) ?? false;
-
                 if (confirm) {
                   await CredentialDbHelper().clearAll();
                   Navigator.pop(context, true);
