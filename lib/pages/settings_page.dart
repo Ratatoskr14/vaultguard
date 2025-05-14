@@ -2,6 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/biometric_service.dart';
 import '../constants/colors.dart';
 import '../db/credential_db.dart';
@@ -15,9 +18,16 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool _driveBackupEnabled  = true;
-  int  _backupFrequencyDays = 7;
-  bool _biometricsEnabled   = false;
+  // Firebase & Google Sign-In
+  final _auth = FirebaseAuth.instance;
+  final _googleSignIn = GoogleSignIn();
+  final _firestore = FirebaseFirestore.instance;
+  User? _user;
+
+  // Existing settings
+  bool _driveBackupEnabled = true;
+  int _backupFrequencyDays = 7;
+  bool _biometricsEnabled = false;
   late SharedPreferences _prefs;
   final _bioService = BiometricService();
 
@@ -25,14 +35,20 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadSettings();
+    // Listen to auth state changes
+    _user = _auth.currentUser;
+    _auth.userChanges().listen((u) {
+      setState(() => _user = u);
+      if (u != null) _createOrUpdateUserRecord(u);
+    });
   }
 
   Future<void> _loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
     setState(() {
-      _driveBackupEnabled  = _prefs.getBool('drive_backup_enabled') ?? true;
+      _driveBackupEnabled = _prefs.getBool('drive_backup_enabled') ?? true;
       _backupFrequencyDays = _prefs.getInt('backup_frequency_days') ?? 7;
-      _biometricsEnabled   = _prefs.getBool('biometrics_enabled') ?? false;
+      _biometricsEnabled = _prefs.getBool('biometrics_enabled') ?? false;
     });
   }
 
@@ -62,6 +78,61 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _biometricsEnabled = v);
   }
 
+  // Google Sign-In and Firestore user setup
+  Future<void> _signInWithGoogle() async {
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return; // user canceled
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCred = await _auth.signInWithCredential(credential);
+      setState(() => _user = userCred.user);
+      // Show success toast
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Signed in as ${_user!.displayName ?? _user!.email}',
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign-in failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await _auth.signOut();
+      await _googleSignIn.signOut();
+      setState(() => _user = null);
+      // Show sign-out toast
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Signed out successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign-out failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _createOrUpdateUserRecord(User u) async {
+    final doc = _firestore.collection('users').doc(u.uid);
+    await doc.set({
+      'displayName': u.displayName ?? '',
+      'email': u.email ?? '',
+      'photoURL': u.photoURL ?? '',
+      'lastLogin': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,6 +143,42 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Account Card
+          Card(
+            color: AppColors.card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              leading: _user?.photoURL != null
+                  ? CircleAvatar(
+                backgroundImage: NetworkImage(_user!.photoURL!),
+                radius: 20,
+              )
+                  : Icon(Icons.account_circle, size: 40, color: AppColors.accent),
+              title: Text(
+                _user != null
+                    ? _user!.displayName ?? _user!.email!
+                    : 'Sign in with Google',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: _user != null ? FontWeight.normal : FontWeight.bold,
+                ),
+              ),
+              subtitle: _user != null
+                  ? Text(_user!.email!, style: TextStyle(color: AppColors.textSecondary))
+                  : null,
+              trailing: _user != null
+                  ? IconButton(
+                icon: Icon(Icons.logout, color: AppColors.accent),
+                onPressed: _signOut,
+              )
+                  : null,
+              onTap: _user == null ? _signInWithGoogle : null,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
           // Data Backup Card
           Card(
             color: AppColors.card,
@@ -98,8 +205,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text('Backup Frequency:',
-                          style: TextStyle(color: AppColors.textPrimary)),
+                      Text('Backup Frequency:', style: TextStyle(color: AppColors.textPrimary)),
                       const Spacer(),
                       DropdownButton<int>(
                         value: _backupFrequencyDays,
@@ -111,9 +217,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: Text('$d days'),
                         ))
                             .toList(),
-                        onChanged: _driveBackupEnabled
-                            ? _onBackupFrequencyChanged
-                            : null,
+                        onChanged: _driveBackupEnabled ? _onBackupFrequencyChanged : null,
                       ),
                     ],
                   ),
@@ -168,9 +272,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   builder: (_) => AlertDialog(
                     backgroundColor: AppColors.surface,
                     title: const Text('Confirm Clear Vault'),
-                    content: const Text(
-                      'Delete all your stored credentials?',
-                    ),
+                    content: const Text('Delete all your stored credentials?'),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context, false),
@@ -182,8 +284,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
-                ) ??
-                    false;
+                ) ?? false;
 
                 if (confirm) {
                   await CredentialDbHelper().clearAll();

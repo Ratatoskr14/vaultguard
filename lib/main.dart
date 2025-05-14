@@ -1,10 +1,20 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 import 'constants/colors.dart';
 import 'pages/login_page.dart';
 import 'pages/vault_page.dart';
 import 'pages/settings_page.dart';
 
-void main() {
+Future<void> main() async {
+  // Ensure Flutter bindings and Firebase are initialized before running the app
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const VaultGuardApp());
 }
 
