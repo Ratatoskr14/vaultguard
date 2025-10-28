@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:provider/provider.dart'; // NEW
 import '../db/card_db.dart';
 import '../db/note_db.dart';
 import '../services/backup_service.dart';
@@ -133,7 +134,6 @@ class _SettingsPageState extends State<SettingsPage> {
     if (await Permission.manageExternalStorage.request().isGranted) {
       return true;
     }
-    // handle denial...
     return false;
   }
 
@@ -175,6 +175,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Access theme controller
+    final themeController = context.watch<ThemeModeController>();
+    final current = _toAppThemeMode(themeController.mode);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -217,6 +221,45 @@ class _SettingsPageState extends State<SettingsPage> {
 
           const SizedBox(height: 16),
 
+          // THEME CARD (NEW)
+          Card(
+            color: AppColors.card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Theme',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary)),
+                  RadioListTile<AppThemeMode>(
+                    title: const Text('System default'),
+                    value: AppThemeMode.system,
+                    groupValue: current,
+                    onChanged: (v) => _onThemeChange(themeController, v),
+                  ),
+                  RadioListTile<AppThemeMode>(
+                    title: const Text('Light mode'),
+                    value: AppThemeMode.light,
+                    groupValue: current,
+                    onChanged: (v) => _onThemeChange(themeController, v),
+                  ),
+                  RadioListTile<AppThemeMode>(
+                    title: const Text('Dark mode'),
+                    value: AppThemeMode.dark,
+                    groupValue: current,
+                    onChanged: (v) => _onThemeChange(themeController, v),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
           // Data Backup Card
           Card(
             color: AppColors.card,
@@ -226,7 +269,11 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Data Backup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text('Data Backup',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary)),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     title: const Text('Google Drive Backup'),
@@ -238,14 +285,20 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text('Backup Frequency:', style: TextStyle(color: AppColors.textPrimary)),
+                      Text('Backup Frequency:',
+                          style: TextStyle(color: AppColors.textPrimary)),
                       const Spacer(),
                       DropdownButton<int>(
                         value: _backupFrequencyDays,
                         dropdownColor: AppColors.surface,
                         style: TextStyle(color: AppColors.textPrimary),
-                        items: [3, 7, 14, 30].map((d) => DropdownMenuItem(value: d, child: Text('\$d days'))).toList(),
-                        onChanged: _driveBackupEnabled ? _onBackupFrequencyChanged : null,
+                        items: [3, 7, 14, 30]
+                            .map((d) => DropdownMenuItem(
+                            value: d, child: Text('$d days')))
+                            .toList(),
+                        onChanged: _driveBackupEnabled
+                            ? _onBackupFrequencyChanged
+                            : null,
                       ),
                     ],
                   ),
@@ -288,7 +341,11 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Security', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text('Security',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary)),
                   const SizedBox(height: 8),
                   SwitchListTile(
                     title: const Text('Use Fingerprint (Biometrics)'),
@@ -311,20 +368,28 @@ class _SettingsPageState extends State<SettingsPage> {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               leading: const Icon(Icons.delete_forever, color: Colors.white),
-              title: const Text('Clear Vault', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: const Text('Clear Vault',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
               onTap: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
                     backgroundColor: AppColors.surface,
                     title: const Text('Confirm Clear Vault'),
-                    content: const Text('Delete all your stored credentials?'),
+                    content:
+                    const Text('Delete all your stored credentials?'),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Delete')),
                     ],
                   ),
-                ) ?? false;
+                ) ??
+                    false;
                 if (confirm) {
                   await CredentialDbHelper().clearAll();
                   await CardDbHelper().clearAll();
@@ -337,5 +402,21 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  AppThemeMode _toAppThemeMode(ThemeMode m) {
+    switch (m) {
+      case ThemeMode.light:
+        return AppThemeMode.light;
+      case ThemeMode.dark:
+        return AppThemeMode.dark;
+      case ThemeMode.system:
+      default:
+        return AppThemeMode.system;
+    }
+  }
+
+  void _onThemeChange(ThemeModeController c, AppThemeMode? v) {
+    if (v != null) c.set(v);
   }
 }

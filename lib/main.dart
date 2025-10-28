@@ -9,6 +9,7 @@ import 'constants/colors.dart';
 import 'pages/login_page.dart';
 import 'pages/vault_page.dart';
 import 'pages/settings_page.dart';
+import 'package:provider/provider.dart';
 
 Future<void> main() async {
   // Ensure Flutter bindings and Firebase are initialized before running the app
@@ -17,9 +18,14 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  WidgetsFlutterBinding.ensureInitialized();
-
-  runApp(const VaultGuardApp());
+  final themeController = ThemeModeController();
+    await themeController.load();
+  runApp(
+          ChangeNotifierProvider.value(
+                value: themeController,
+                child: const VaultGuardApp(),
+          ),
+    );
 }
 
 class VaultGuardApp extends StatelessWidget {
@@ -28,11 +34,7 @@ class VaultGuardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final baseDark = ThemeData.dark();
-    return MaterialApp(
-      title: 'VaultGuard',
-      debugShowCheckedModeBanner: false,
-      theme: baseDark.copyWith(
-        // Update the ColorScheme to use our custom greys
+    final customDarkTheme = baseDark.copyWith(
         colorScheme: baseDark.colorScheme.copyWith(
           background:   AppColors.background,
           surface:      AppColors.surface,
@@ -40,8 +42,8 @@ class VaultGuardApp extends StatelessWidget {
           onBackground: AppColors.textPrimary,
           onSurface:    AppColors.textPrimary,
         ),
-        scaffoldBackgroundColor: AppColors.background,
-        cardColor:               AppColors.card,
+      scaffoldBackgroundColor: AppColors.background,
+      cardColor:               AppColors.card,
         appBarTheme: const AppBarTheme(
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.textPrimary,
@@ -50,41 +52,48 @@ class VaultGuardApp extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           filled:     true,
           fillColor:  AppColors.surface,
-          border:     OutlineInputBorder(
-            borderRadius: BorderRadius.circular(4),
-            borderSide:   BorderSide.none,
-          ),
-          labelStyle: const TextStyle(color: AppColors.textSecondary),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(AppColors.accent),
-            foregroundColor: MaterialStateProperty.all(AppColors.textPrimary),
-            shape: MaterialStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+            border:     OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide:   BorderSide.none,
+            ),
+            labelStyle: const TextStyle(color: AppColors.textSecondary),
+                  ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all(AppColors.accent),
+              foregroundColor: MaterialStateProperty.all(AppColors.textPrimary),
+              shape: MaterialStateProperty.all(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
             ),
           ),
-        ),
-        textTheme: const TextTheme(
-          titleLarge: TextStyle(color: AppColors.textPrimary, fontSize: 20),
-          bodyMedium: TextStyle(color: AppColors.textSecondary),
-        ),
-        popupMenuTheme: PopupMenuThemeData(
-          color: AppColors.surface,
-          textStyle: const TextStyle(color: AppColors.textPrimary),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+          textTheme: const TextTheme(
+            titleLarge: TextStyle(color: AppColors.textPrimary, fontSize: 20),
+            bodyMedium: TextStyle(color: AppColors.textSecondary),
           ),
-        ),
-        pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.iOS:     CupertinoPageTransitionsBuilder(),
-          },
-        ),
-      ),
+          popupMenuTheme: PopupMenuThemeData(
+            color: AppColors.surface,
+            textStyle: const TextStyle(color: AppColors.textPrimary),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+              TargetPlatform.iOS:     CupertinoPageTransitionsBuilder(),
+            },
+          ),
+        );
+
+        return MaterialApp(
+      title: 'VaultGuard',
+      debugShowCheckedModeBanner: false,
+          theme: AppThemes.lightTheme,
+          darkTheme: customDarkTheme,
+          themeMode: themeController.mode,
       initialRoute: LoginPage.routeName,
       routes: {
         LoginPage.routeName: (_) => const LoginPage(),
